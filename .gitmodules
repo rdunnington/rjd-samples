@@ -1,0 +1,3 @@
+[submodule "rjd"]
+	path = rjd
+	url = https://github.com/rdunnington/rjd.git
