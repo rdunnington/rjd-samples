@@ -102,7 +102,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 			for (size_t i = 0; i < rjd_countof(color); ++i) {
 				color[i] = 0xFF0080FF;
 			}
-            
+
             struct rjd_gfx_texture_desc desc = {
                 .data = color,
                 .data_length = sizeof(color),
@@ -123,9 +123,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 
         // shader
         {
-//            system("pwd");
-
-			const char* filename = rjd_gfx_backend_ismetal() ? "Shaders.metal" : "../bin/shader/quad.shader";
+			const char* filename = "Shaders.metal";
             char* data = 0;
             struct rjd_result result = rjd_fio_read(filename, &data, app->allocator);
             RJD_ASSERTMSG(rjd_result_isok(result), "Error loading shader file '%s': %s", filename, result.error);
@@ -157,24 +155,15 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
                     .step_rate = 1,
                     .offset = 0,
                 },
-                // texcoord
+                // tint
                 {
-                    .type = RJD_GFX_VERTEX_FORMAT_TYPE_FLOAT2,
+                    .type = RJD_GFX_VERTEX_FORMAT_TYPE_FLOAT4,
                     .step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
                     .attribute_index = 1,
                     .buffer_index = 1,
-                    .stride = sizeof(float) * 2,
+                    .stride = sizeof(float) * 4,
                     .step_rate = 1,
                 },
-                // tint
-//                {
-//                    .type = RJD_GFX_VERTEX_FORMAT_TYPE_FLOAT4,
-//                    .step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
-//                    .attribute_index = 2,
-//                    .buffer_index = 2,
-//                    .stride = sizeof(float) * 4,
-//                    .step_rate = 1,
-//                },
             };
             
             struct rjd_gfx_pipeline_state_desc desc = {
@@ -201,23 +190,15 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
                 size.width, size.height, -10.0,
                 0, size.height, -10.0,
                 size.width / 2, 0, -10.0,
-
-                // screenspace triangle
-//                1, -1, 1,
-//                0, 1, 1,
-//                -1, -1, 1,
             };
 
-            const float uvs[] =
-            {
-                0.0f, 0.0f,
-                1.0f, 1.0f,
-                0.0f, 1.0f,
-//                0.0f, 0.0f,
-//                1.0f, 0.0f,
-//                1.0f, 1.0f,
-            };
-            
+			const float tints[] = 
+			{
+				0,1,0,1,
+				0,0,1,1,
+				1,0,0,1,
+			};
+
             struct rjd_gfx_mesh_vertex_buffer_desc buffers_desc[] =
             {
                 {
@@ -231,12 +212,13 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
                     .usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
                     .buffer_index = 0,
                 },
+				// tints
                 {
                     .type = RJD_GFX_MESH_BUFFER_TYPE_VERTEX,
                     .common = {
                         .vertex = {
-                            .data = uvs,
-                            .length = sizeof(uvs),
+                            .data = tints,
+                            .length = sizeof(tints),
                         }
                     },
                     .usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
@@ -254,7 +236,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
                     .buffer_index = 2,
                 }
             };
-            
+
             struct rjd_gfx_mesh_vertexed_desc desc =
             {
                 .primitive = RJD_GFX_PRIMITIVE_TYPE_TRIANGLES,
@@ -269,7 +251,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
             }
         }
     }
- 
+
     {
         struct rjd_result result = rjd_gfx_present(app->gfx.context);
         if (!rjd_result_isok(result)) {
@@ -349,8 +331,8 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
             rjd_gfx_mesh_modify(app->gfx.context, app->gfx.mesh, buffer_index, offset, matrices, sizeof(matrices));
         }
 
-        struct rjd_window_size window_size = rjd_window_size_get(app->window);
-        struct rjd_gfx_viewport viewport = {
+        const struct rjd_window_size window_size = rjd_window_size_get(app->window);
+        const struct rjd_gfx_viewport viewport = {
             .width = window_size.width,
             .height = window_size.height
         };
@@ -367,7 +349,7 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
             .count_textures = 1,
             .winding_order = RJD_GFX_WINDING_ORDER_CLOCKWISE,
             .cull_mode = RJD_GFX_CULL_BACK,
-            .debug_label = "a quad",
+            .debug_label = "a triangle",
         };
 
         rjd_gfx_command_pass_draw(app->gfx.context, &command_buffer, &desc);

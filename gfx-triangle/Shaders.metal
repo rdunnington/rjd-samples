@@ -7,19 +7,13 @@
 typedef NS_ENUM(NSInteger, BufferIndex)
 {
     BufferIndexMeshPositions = 0,
-    BufferIndexMeshGenerics  = 1,
     BufferIndexUniforms      = 2
 };
 
 typedef NS_ENUM(NSInteger, VertexAttribute)
 {
-    VertexAttributePosition  = 0,
-    VertexAttributeTexcoord  = 1,
-};
-
-typedef NS_ENUM(NSInteger, TextureIndex)
-{
-    TextureIndexColor    = 0,
+    VertexAttributePosition = 0,
+    VertexAttributeColor = 1,
 };
 
 typedef struct
@@ -33,13 +27,13 @@ using namespace metal;
 typedef struct
 {
     float3 position [[attribute(VertexAttributePosition)]];
-    float2 texCoord [[attribute(VertexAttributeTexcoord)]];
+    float4 color [[attribute(VertexAttributeColor)]];
 } Vertex;
 
 typedef struct
 {
     float4 position [[position]];
-    float2 texCoord;
+	float4 color;
 } ColorInOut;
 
 vertex ColorInOut vertexShader(Vertex in [[stage_in]],
@@ -49,20 +43,13 @@ vertex ColorInOut vertexShader(Vertex in [[stage_in]],
 
     float4 position = float4(in.position, 1);
     out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * position;
-    out.texCoord = in.texCoord;
+	out.color = in.color;
 
     return out;
 }
 
 fragment float4 fragmentShader(ColorInOut in [[stage_in]],
-                               constant Uniforms & uniforms [[ buffer(BufferIndexUniforms) ]],
-                               texture2d<float> colorMap     [[ texture(TextureIndexColor) ]])
+                               constant Uniforms & uniforms [[ buffer(BufferIndexUniforms) ]])
 {
-    constexpr sampler colorSampler(mip_filter::linear,
-                                   mag_filter::linear,
-                                   min_filter::linear);
-
-    float4 colorSample = colorMap.sample(colorSampler, in.texCoord.xy);
-
-    return colorSample;
+	return in.color;
 }

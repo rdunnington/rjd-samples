@@ -1,4 +1,3 @@
-
 #define RJD_IMPL 1
 #include "rjd_wrapped.h"
 #include "entrypoint.h"
@@ -18,3 +17,4 @@ int main(int argc, const char* argv[])
 
 	return 0;
 }
+
