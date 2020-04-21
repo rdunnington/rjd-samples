@@ -153,7 +153,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
                     .step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
                     .attribute_index = 0,
                     .buffer_index = 0,
-                    .stride = sizeof(rjd_math_float3),
+                    .stride = sizeof(float) * 3,
                     .step_rate = 1,
                     .offset = 0,
                 },
@@ -163,7 +163,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
                     .step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
                     .attribute_index = 1,
                     .buffer_index = 1,
-                    .stride = sizeof(rjd_math_float2),
+                    .stride = sizeof(float) * 2,
                     .step_rate = 1,
                 },
                 // tint
@@ -172,7 +172,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 //                    .step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
 //                    .attribute_index = 2,
 //                    .buffer_index = 2,
-//                    .stride = sizeof(rjd_math_float4),
+//                    .stride = sizeof(float) * 4,
 //                    .step_rate = 1,
 //                },
             };
@@ -195,27 +195,27 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
         // vertexed mesh
         {
             const struct rjd_window_size size = rjd_window_size_get(window);
-            const rjd_math_float3 positions[] =
+            const float positions[] =
             {
                 // triangle across the whole window
-                rjd_math_float3_xyz(size.width, size.height, -10.0),
-                rjd_math_float3_xyz(0, size.height, -10.0),
-                rjd_math_float3_xyz(size.width / 2, 0, -10.0),
-                
+                size.width, size.height, -10.0,
+                0, size.height, -10.0,
+                size.width / 2, 0, -10.0,
+
                 // screenspace triangle
-//                rjd_math_float3_xyz(1, -1, 1),
-//                rjd_math_float3_xyz(0, 1, 1),
-//                rjd_math_float3_xyz(-1, -1, 1),
+//                1, -1, 1,
+//                0, 1, 1,
+//                -1, -1, 1,
             };
-            
-            const rjd_math_float2 uvs[] =
+
+            const float uvs[] =
             {
-                rjd_math_float2_xy(0.0f, 0.0f),
-                rjd_math_float2_xy(1.0f, 1.0f),
-                rjd_math_float2_xy(0.0f, 1.0f),
-//                rjd_math_float2_xy(0.0f, 0.0f),
-//                rjd_math_float2_xy(1.0f, 0.0f),
-//                rjd_math_float2_xy(1.0f, 1.0f),
+                0.0f, 0.0f,
+                1.0f, 1.0f,
+                0.0f, 1.0f,
+//                0.0f, 0.0f,
+//                1.0f, 0.0f,
+//                1.0f, 1.0f,
             };
             
             struct rjd_gfx_mesh_vertex_buffer_desc buffers_desc[] =
@@ -328,7 +328,7 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
             y = fmodf(y, 100.0f);
             
             struct rjd_gfx_camera camera = rjd_gfx_camera_init(RJD_GFX_CAMERA_MODE_ORTHOGRAPHIC);
-            camera.pos = rjd_math_float3_xyz(x, y, 0.0f);
+            camera.pos = rjd_math_vec3_xyz(x, y, 0.0f);
             
             const struct rjd_window_size bounds = rjd_window_size_get(window);
             
@@ -380,6 +380,8 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
 
 void window_close(struct rjd_window* window, const struct rjd_window_environment* env)
 {
+	RJD_UNUSED_PARAM(window);
+
 	struct app_data* app = env->userdata;
 
     if (rjd_slot_isvalid(app->gfx.mesh->handle)) {
