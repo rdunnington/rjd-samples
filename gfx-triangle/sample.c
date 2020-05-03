@@ -183,20 +183,18 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 
         // vertexed mesh
         {
-            const struct rjd_window_size size = rjd_window_size_get(window);
+			const float p = 0.8f;
             const float positions[] =
             {
-                // triangle across the whole window
-                size.width, size.height, -10.0,
-                0, size.height, -10.0,
-                size.width / 2, 0, -10.0,
+                0, p, .5,
+                p, -p, .5,
+                -p, -p, .5,
             };
-
 			const float tints[] = 
 			{
+				1,0,0,1,
 				0,1,0,1,
 				0,0,1,1,
-				1,0,0,1,
 			};
 
             struct rjd_gfx_mesh_vertex_buffer_desc buffers_desc[] =
@@ -224,17 +222,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
                     .usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
                     .buffer_index = 1,
                 },
-                // uniforms
-                {
-                    .type = RJD_GFX_MESH_BUFFER_TYPE_UNIFORMS,
-                    .common = {
-                        .uniforms = {
-                            .capacity = rjd_math_maxu32(sizeof(struct uniforms), 256) * 3,
-                        }
-                    },
-                    .usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX | RJD_GFX_MESH_BUFFER_USAGE_FRAGMENT,
-                    .buffer_index = 2,
-                }
             };
 
             struct rjd_gfx_mesh_vertexed_desc desc =
@@ -266,6 +253,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 
 void window_update(struct rjd_window* window, const struct rjd_window_environment* env)
 {
+	RJD_UNUSED_PARAM(window);
+
     struct app_data* app = env->userdata;
 
     {
@@ -300,37 +289,6 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
 
 	// draw a quad
     {
-        // update uniform transforms
-        {
-            static float x = 0;
-            static float y = 0;
-//            x += .5f;
-//            y += 1.0f;
-            x = fmodf(x, 100.0f);
-            y = fmodf(y, 100.0f);
-            
-            struct rjd_gfx_camera camera = rjd_gfx_camera_init(RJD_GFX_CAMERA_MODE_ORTHOGRAPHIC);
-            camera.pos = rjd_math_vec3_xyz(x, y, 0.0f);
-            
-            const struct rjd_window_size bounds = rjd_window_size_get(window);
-            
-            rjd_math_mat4 proj_matrix = rjd_math_mat4_ortho_righthanded(0.0f, bounds.width, 0, bounds.height, 0.1, 100.0f);
-            rjd_math_mat4 view_matrix = rjd_gfx_camera_lookat_ortho_righthanded(&camera);
-            rjd_math_mat4 model_matrix = rjd_math_mat4_identity();
-            
-            rjd_math_mat4 modelview_matrix = rjd_math_mat4_mul(view_matrix, model_matrix);
-            
-            rjd_math_mat4 matrices[] = { proj_matrix, modelview_matrix };
-            
-            // TODO fix hacky frame_index
-            static uint32_t frame_index = 0;
-            uint32_t buffer_index = 2;
-            uint32_t offset = frame_index * rjd_math_maxu32(sizeof(struct uniforms), 256);
-            frame_index = (frame_index + 1) % 3;
-            
-            rjd_gfx_mesh_modify(app->gfx.context, app->gfx.mesh, buffer_index, offset, matrices, sizeof(matrices));
-        }
-
         const struct rjd_window_size window_size = rjd_window_size_get(app->window);
         const struct rjd_gfx_viewport viewport = {
             .width = window_size.width,
