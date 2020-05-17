@@ -2,13 +2,9 @@
 #include <stdbool.h>
 
 #include "rjd_wrapped.h"
-#include "entrypoint.h"
-//struct rjd_gfx_windowsize g_window_size = { .width = 480, .height = 640 };
+#include "app.h"
 
 #include <errno.h>
-
-////////////////////////////////////////////////////////////////////////////////////////////
-// implementation
 
 struct uniforms
 {
@@ -59,11 +55,15 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 {
     struct app_data* app = env->userdata;
 
+	app->input = rjd_mem_alloc(struct rjd_input, app->allocator);
+	rjd_input_create(app->input, app->allocator);
+	rjd_input_hook(app->input, window, env);
+
 	app->gfx.context = rjd_mem_alloc(struct rjd_gfx_context, app->allocator);
 	app->gfx.texture = rjd_mem_alloc(struct rjd_gfx_texture, app->allocator);
 	app->gfx.shader = rjd_mem_alloc(struct rjd_gfx_shader, app->allocator);
 	app->gfx.pipeline_state = rjd_mem_alloc(struct rjd_gfx_pipeline_state, app->allocator);
-	app->gfx.mesh = rjd_mem_alloc(struct rjd_gfx_mesh, app->allocator);
+	app->gfx.meshes = rjd_mem_alloc_array(struct rjd_gfx_mesh, RJD_PROCGEO_TYPE_COUNT, app->allocator);
 
     {
         struct rjd_gfx_context_desc desc = {
@@ -181,34 +181,15 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
             }
         }
 
-        // vertexed mesh
+        // meshes
+		for (enum rjd_procgeo_type geo = 0; geo < RJD_PROCGEO_TYPE_COUNT; ++geo)
         {
-			const float shape_size = 1;
+            const float shape_size = .5;
 			const uint32_t tesselation = 16;
 
-			//uint32_t num_verts = rjd_procgeo_rect_calc_num_verts();
-			//float* positions = rjd_mem_alloc_array(float, num_verts * 3, app->allocator);
-			//rjd_procgeo_rect(shape_size, shape_size, positions, num_verts * 3);
-
-			//uint32_t num_verts = rjd_procgeo_circle_calc_num_verts(tesselation);
-			//float* positions = rjd_mem_alloc_array(float, num_verts * 3, app->allocator);
-			//rjd_procgeo_circle(shape_size / 2, tesselation, positions, num_verts * 3);
-
-			//const uint32_t num_verts = rjd_procgeo_box_calc_num_verts();
-			//float* positions = rjd_mem_alloc_array(float, num_verts * 3, app->allocator);
-			//rjd_procgeo_box(shape_size, shape_size, shape_size, positions, num_verts * 3);
-
-			//const uint32_t num_verts = rjd_procgeo_cone_calc_num_verts(tesselation);
-			//float* positions = rjd_mem_alloc_array(float, num_verts * 3, app->allocator);
-			//rjd_procgeo_cone(shape_size, shape_size / 2, tesselation, positions, num_verts * 3);
-
-			//const uint32_t num_verts = rjd_procgeo_cylinder_calc_num_verts(tesselation);
-			//float* positions = rjd_mem_alloc_array(float, num_verts * 3, app->allocator);
-			//rjd_procgeo_cylinder(shape_size, shape_size / 2, tesselation, positions, num_verts * 3);
-
-			const uint32_t num_verts = rjd_procgeo_sphere_calc_num_verts(tesselation);
+			const uint32_t num_verts = rjd_procgeo_calc_num_verts(geo, tesselation);
 			float* positions = rjd_mem_alloc_array(float, num_verts * 3, app->allocator);
-			rjd_procgeo_sphere(shape_size / 2, tesselation, positions, num_verts * 3);
+			rjd_procgeo(geo, tesselation, shape_size, shape_size, shape_size, positions, num_verts * 3);
 
 			const rjd_math_vec4 k_red = rjd_math_vec4_xyzw(1,0,0,1);
 			const rjd_math_vec4 k_green = rjd_math_vec4_xyzw(0,1,0,1);
@@ -268,12 +249,13 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
                 .count_vertices = num_verts,
             };
 
-            struct rjd_result result = rjd_gfx_mesh_create_vertexed(app->gfx.context, app->gfx.mesh, desc, app->allocator);
+            struct rjd_result result = rjd_gfx_mesh_create_vertexed(app->gfx.context, app->gfx.meshes + geo, desc, app->allocator);
             if (!rjd_result_isok(result)) {
                 RJD_LOG("Error creating mesh: %s", result.error);
             }
 
 			rjd_mem_free(positions);
+			rjd_mem_free(tints);
         }
     }
 
@@ -299,6 +281,18 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
             RJD_LOG("Failed to wait for frame begin: %s", result.error);
         }
     }
+
+	if (rjd_input_keyboard_triggered(app->input, RJD_INPUT_KEYBOARD_ARROW_LEFT) ||
+		rjd_input_mouse_triggered(app->input, RJD_INPUT_MOUSE_BUTTON_RIGHT)) {
+		app->current_mesh_index = (app->current_mesh_index + RJD_PROCGEO_TYPE_COUNT - 1) % RJD_PROCGEO_TYPE_COUNT;
+	}
+
+	if (rjd_input_keyboard_triggered(app->input, RJD_INPUT_KEYBOARD_ARROW_RIGHT) ||
+		rjd_input_mouse_triggered(app->input, RJD_INPUT_MOUSE_BUTTON_LEFT)) {
+		app->current_mesh_index = (app->current_mesh_index + 1) % RJD_PROCGEO_TYPE_COUNT;
+	}
+
+	rjd_input_markframe(app->input);
 
     struct rjd_gfx_command_buffer command_buffer = {0};
     {
@@ -337,12 +331,8 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
 				pos = rjd_math_vec3_xyz(0, 0, 100);
 				look = rjd_math_vec3_normalize(rjd_math_vec3_sub(origin, pos));
 				up = rjd_math_vec3_normalize(rjd_math_vec3_cross(right, look));
-
-				//float* l = (float*)&look;
-				//RJD_LOG("camera look: %.2f %.2f %.2f", l[0], l[1], l[2]);
 			}
 
-            //rjd_math_mat4 proj_matrix = rjd_math_mat4_ortho_righthanded(0.0f, bounds.width, 0, bounds.height, 0.1, 100.0f);
 			const float y_field_of_view = RJD_MATH_PI*2*60/360;
 			const float aspect = (float)bounds.width / bounds.height;
 			const float near = 0.1f;
@@ -353,7 +343,6 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
 			{
 				static float s_rotation_x = 0;
 				static float s_rotation_y = 5 * RJD_MATH_PI / 6.0f;
-				//rjd_math_mat4 trans = rjd_math_mat4_translation(rjd_math_vec3_xyz(bounds.width / 2, bounds.height / 2, -10));
 				rjd_math_mat4 trans = rjd_math_mat4_translation(rjd_math_vec3_xyz(0, 0, 0));
 				rjd_math_mat4 rot1 = rjd_math_mat4_rotationx(s_rotation_x);
 				rjd_math_mat4 rot2 = rjd_math_mat4_rotationy(s_rotation_y);
@@ -376,7 +365,7 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
             uint32_t offset = frame_index * rjd_math_maxu32(sizeof(struct uniforms), 256);
             frame_index = (frame_index + 1) % 3;
             
-            rjd_gfx_mesh_modify(app->gfx.context, app->gfx.mesh, buffer_index, offset, matrices, sizeof(matrices));
+            rjd_gfx_mesh_modify(app->gfx.context, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, matrices, sizeof(matrices));
         }
 
         const struct rjd_window_size window_size = rjd_window_size_get(app->window);
@@ -384,21 +373,22 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
             .width = window_size.width,
             .height = window_size.height
         };
-
         const uint32_t texture_indices[] = {0};
+		enum rjd_gfx_cull cull_mode = 
+			(app->current_mesh_index == RJD_PROCGEO_TYPE_RECT || app->current_mesh_index == RJD_PROCGEO_TYPE_CIRCLE) 
+				? RJD_GFX_CULL_NONE
+				: RJD_GFX_CULL_BACK;
 
         struct rjd_gfx_pass_draw_desc desc = {
             .viewport = &viewport,
             .pipeline_state = app->gfx.pipeline_state,
-            .meshes = app->gfx.mesh,
+            .meshes = app->gfx.meshes + app->current_mesh_index,
             .textures = app->gfx.texture,
             .texture_indices = texture_indices,
             .count_meshes = 1,
             .count_textures = 0,
             .winding_order = RJD_GFX_WINDING_ORDER_CLOCKWISE,
-            .cull_mode = RJD_GFX_CULL_BACK,
-            //.cull_mode = RJD_GFX_CULL_FRONT,
-            //.cull_mode = RJD_GFX_CULL_NONE,
+            .cull_mode = cull_mode,
             .debug_label = "a shape",
         };
 
@@ -416,9 +406,15 @@ void window_close(struct rjd_window* window, const struct rjd_window_environment
 
 	struct app_data* app = env->userdata;
 
-    if (rjd_slot_isvalid(app->gfx.mesh->handle)) {
-        rjd_gfx_mesh_destroy(app->gfx.context, app->gfx.mesh);
-    }
+	rjd_input_destroy(app->input);
+	rjd_mem_free(app->input);
+
+	for (uint32_t i = 0; i < RJD_PROCGEO_TYPE_COUNT; ++i) {
+    	if (rjd_slot_isvalid(app->gfx.meshes[i].handle)) {
+    	    rjd_gfx_mesh_destroy(app->gfx.context, app->gfx.meshes + i);
+    	}
+	}
+
     if (rjd_slot_isvalid(app->gfx.texture->handle)) {
         rjd_gfx_texture_destroy(app->gfx.context, app->gfx.texture);
     }
@@ -430,7 +426,7 @@ void window_close(struct rjd_window* window, const struct rjd_window_environment
 	rjd_mem_free(app->gfx.texture);
 	rjd_mem_free(app->gfx.shader);
 	rjd_mem_free(app->gfx.pipeline_state);
-	rjd_mem_free(app->gfx.mesh);
+	rjd_mem_free(app->gfx.meshes);
 
 	rjd_mem_free(app->window);
 	rjd_mem_free(app->allocator);
