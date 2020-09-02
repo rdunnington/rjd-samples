@@ -186,10 +186,10 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
         {
             const float shape_size = .5;
 			const uint32_t tesselation = 16;
-
+ 
 			const uint32_t num_verts = rjd_procgeo_calc_num_verts(geo, tesselation);
 			float* positions = rjd_mem_alloc_array(float, num_verts * 3, app->allocator);
-			rjd_procgeo(geo, tesselation, shape_size, shape_size, shape_size, positions, num_verts * 3);
+			rjd_procgeo(geo, tesselation, shape_size, shape_size, shape_size, positions, num_verts * 3, 0);
 
 			const rjd_math_vec4 k_red = rjd_math_vec4_xyzw(1,0,0,1);
 			const rjd_math_vec4 k_green = rjd_math_vec4_xyzw(0,1,0,1);
