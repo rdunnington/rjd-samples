@@ -61,14 +61,19 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 
 	app->gfx.context = rjd_mem_alloc(struct rjd_gfx_context, app->allocator);
 	app->gfx.texture = rjd_mem_alloc(struct rjd_gfx_texture, app->allocator);
-	app->gfx.shader = rjd_mem_alloc(struct rjd_gfx_shader, app->allocator);
+	app->gfx.shader_vertex = rjd_mem_alloc(struct rjd_gfx_shader, app->allocator);
+    app->gfx.shader_pixel = rjd_mem_alloc(struct rjd_gfx_shader, app->allocator);
 	app->gfx.pipeline_state = rjd_mem_alloc(struct rjd_gfx_pipeline_state, app->allocator);
 	app->gfx.meshes = rjd_mem_alloc_array(struct rjd_gfx_mesh, RJD_PROCGEO_TYPE_COUNT, app->allocator);
 
     {
+        uint32_t msaa_sample_counts[] = { 16, 8, 4, 2, 1 };
+        
         struct rjd_gfx_context_desc desc = {
             .backbuffer_color_format = RJD_GFX_FORMAT_COLOR_U8_BGRA_NORM_SRGB,
             .backbuffer_depth_format = RJD_GFX_FORMAT_DEPTHSTENCIL_F32_D32,
+            .optional_desired_msaa_samples = msaa_sample_counts,
+            .count_desired_msaa_samples = rjd_countof(msaa_sample_counts),
             .allocator = app->allocator,
         };
 
@@ -83,14 +88,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 			RJD_LOG("Failed to create gfx context: %s", result.error);
 			return;
 		}
-        
-        uint32_t msaa_sample_counts[] = { 16, 8, 4, 2, 1 };
-        for (size_t i = 0; i < rjd_countof(msaa_sample_counts); ++i) {
-            if (rjd_gfx_msaa_is_count_supported(app->gfx.context, msaa_sample_counts[i])) {
-                rjd_gfx_msaa_set_count(app->gfx.context, msaa_sample_counts[i]);
-                break;
-            }
-        }
     }
 
     // resources
@@ -125,19 +122,42 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
         {
 			const char* filename = "Shaders.metal";
             char* data = 0;
-            struct rjd_result result = rjd_fio_read(filename, &data, app->allocator);
-            RJD_ASSERTMSG(rjd_result_isok(result), "Error loading shader file '%s': %s", filename, result.error);
-            rjd_array_push(data, '\0');
-
-            struct rjd_gfx_shader_desc desc = {
-                .data = data,
-                .count_data = rjd_array_count(data) - 1,
-            };
-            
-            result = rjd_gfx_shader_create(app->gfx.context, app->gfx.shader, desc);
-            if (!rjd_result_isok(result)) {
-                RJD_LOG("Error creating shader: %s", result.error);
+            {
+                struct rjd_result result = rjd_fio_read(filename, &data, app->allocator);
+                RJD_ASSERTMSG(rjd_result_isok(result), "Error loading shader file '%s': %s", filename, result.error);
+                rjd_array_push(data, '\0');
             }
+
+            {
+                struct rjd_gfx_shader_desc desc = {
+                    .source_name = filename,
+                    .function_name = "vertexShader",
+                    .data = data,
+                    .count_data = rjd_array_count(data) - 1,
+                    .type = RJD_GFX_SHADER_TYPE_VERTEX,
+                };
+                
+                struct rjd_result result = rjd_gfx_shader_create(app->gfx.context, app->gfx.shader_vertex, desc);
+                if (!rjd_result_isok(result)) {
+                    RJD_LOG("Error creating shader: %s", result.error);
+                }
+            }
+            
+            {
+                struct rjd_gfx_shader_desc desc = {
+                    .source_name = filename,
+                    .function_name = "fragmentShader",
+                    .data = data,
+                    .count_data = rjd_array_count(data) - 1,
+                    .type = RJD_GFX_SHADER_TYPE_PIXEL,
+                };
+                
+                struct rjd_result result = rjd_gfx_shader_create(app->gfx.context, app->gfx.shader_pixel, desc);
+                if (!rjd_result_isok(result)) {
+                    RJD_LOG("Error creating shader: %s", result.error);
+                }
+            }
+            
             rjd_array_free(data);
         }
 
@@ -168,7 +188,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
             
             struct rjd_gfx_pipeline_state_desc desc = {
                 .debug_name = "2D Pipeline",
-                .shader = *app->gfx.shader,
+                .shader_vertex = *app->gfx.shader_vertex,
+                .shader_pixel = *app->gfx.shader_pixel,
                 .render_target = RJD_GFX_TEXTURE_BACKBUFFER,
                 .depthstencil_target = RJD_GFX_TEXTURE_BACKBUFFER,
                 .vertex_attributes = vertex_attributes,
@@ -249,7 +270,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
                 .count_vertices = num_verts,
             };
 
-            struct rjd_result result = rjd_gfx_mesh_create_vertexed(app->gfx.context, app->gfx.meshes + geo, desc, app->allocator);
+            struct rjd_result result = rjd_gfx_mesh_create_vertexed(app->gfx.context, app->gfx.meshes + geo, desc);
             if (!rjd_result_isok(result)) {
                 RJD_LOG("Error creating mesh: %s", result.error);
             }
@@ -264,10 +285,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
         if (!rjd_result_isok(result)) {
             RJD_LOG("Failed to present: %s", result.error);
         }
-    }
-
-    if (!rjd_gfx_vsync_try_enable(app->gfx.context)) {
-        RJD_LOG("No VSync support detected.");
     }
 }
 
@@ -365,7 +382,7 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
             uint32_t offset = frame_index * rjd_math_maxu32(sizeof(struct uniforms), 256);
             frame_index = (frame_index + 1) % 3;
             
-            rjd_gfx_mesh_modify(app->gfx.context, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, matrices, sizeof(matrices));
+            rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, matrices, sizeof(matrices));
         }
 
         const struct rjd_window_size window_size = rjd_window_size_get(app->window);
@@ -419,12 +436,14 @@ void window_close(struct rjd_window* window, const struct rjd_window_environment
         rjd_gfx_texture_destroy(app->gfx.context, app->gfx.texture);
     }
 	rjd_gfx_pipeline_state_destroy(app->gfx.context, app->gfx.pipeline_state);
-	rjd_gfx_shader_destroy(app->gfx.context, app->gfx.shader);
+	rjd_gfx_shader_destroy(app->gfx.context, app->gfx.shader_vertex);
+    rjd_gfx_shader_destroy(app->gfx.context, app->gfx.shader_pixel);
 	rjd_gfx_context_destroy(app->gfx.context);
 
 	rjd_mem_free(app->gfx.context);
 	rjd_mem_free(app->gfx.texture);
-	rjd_mem_free(app->gfx.shader);
+	rjd_mem_free(app->gfx.shader_vertex);
+    rjd_mem_free(app->gfx.shader_pixel);
 	rjd_mem_free(app->gfx.pipeline_state);
 	rjd_mem_free(app->gfx.meshes);
 
