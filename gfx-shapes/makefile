@@ -1,6 +1,6 @@
 ifeq ($(OS), Windows_NT)
-	PLATFORM_FLAGS :=
-	PLATFORM_FILES := tests_rjd.c
+	PLATFORM_FLAGS := -D RJD_GFX_BACKEND_D3D11=1
+	PLATFORM_FILES := main_win32.c
 	OUTPUT_FILE := sample.exe
 else
 	#SHELL_NAME := $(shell uname -s)

@@ -38,9 +38,6 @@ void env_init(const struct rjd_window_environment* env)
 		.update_func = window_update,
         .close_func = window_close,
     };
-	#if RJD_PLATFORM_WINDOWS
-        window_desc.win32.handle_instance = env->handle_instance;
-	#endif
 
 	struct rjd_result result = rjd_window_create(app->window, window_desc);
 	if (!rjd_result_isok(result)) {
@@ -78,7 +75,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
         };
 
         #if RJD_PLATFORM_WINDOWS
-            desc.win32.window_handle = rjd_window_win32_get_hwnd(window);
+            desc.win32.hwnd = rjd_window_win32_get_hwnd(window);
         #elif RJD_PLATFORM_OSX
             desc.osx.view = rjd_window_osx_get_mtkview(window);
         #endif
@@ -120,7 +117,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 
         // shader
         {
-			const char* filename = "Shaders.metal";
+			const char* filename = rjd_gfx_backend_ismetal() ? "Shaders.metal" : "shaders.hlsl";
             char* data = 0;
             {
                 struct rjd_result result = rjd_fio_read(filename, &data, app->allocator);
@@ -288,7 +285,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
     }
 }
 
-void window_update(struct rjd_window* window, const struct rjd_window_environment* env)
+bool window_update(struct rjd_window* window, const struct rjd_window_environment* env)
 {
     struct app_data* app = env->userdata;
 
@@ -316,7 +313,7 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
         struct rjd_result result = rjd_gfx_command_buffer_create(app->gfx.context, &command_buffer);
         if (!rjd_result_isok(result)) {
             RJD_LOG("failed to create command buffer: %s", result.error);
-            return;
+            return false;
         }
     }
 
@@ -330,7 +327,7 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
         struct rjd_result result = rjd_gfx_command_pass_begin(app->gfx.context, &command_buffer, &begin);
         if (!rjd_result_isok(result)) {
             RJD_LOG("failed to create command buffer: %s", result.error);
-            return;
+            return false;
         }
     }
 
@@ -415,6 +412,8 @@ void window_update(struct rjd_window* window, const struct rjd_window_environmen
     rjd_gfx_command_buffer_commit(app->gfx.context, &command_buffer);
 
 	rjd_gfx_present(app->gfx.context);
+
+    return true;
 }
 
 void window_close(struct rjd_window* window, const struct rjd_window_environment* env)
