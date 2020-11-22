@@ -48,7 +48,7 @@ vertex ColorInOut vertexShader(Vertex in [[stage_in]],
     return out;
 }
 
-fragment float4 fragmentShader(ColorInOut in [[stage_in]],
+fragment float4 pixelShader(ColorInOut in [[stage_in]],
                                constant Uniforms & uniforms [[ buffer(BufferIndexUniforms) ]])
 {
 	return in.color;

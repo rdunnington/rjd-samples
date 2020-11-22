@@ -1,5 +1,4 @@
 #define RJD_IMPL 1
-#include "rjd_wrapped.h"
 #include "app.h"
 #include <stdio.h>
 
