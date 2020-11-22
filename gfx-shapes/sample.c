@@ -232,6 +232,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 						.vertex = {
 							.data = positions,
 							.length = num_verts * sizeof(float) * 3,
+							.stride = sizeof(float) * 3,
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
@@ -244,6 +245,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 						.vertex = {
 							.data = tints,
 							.length = num_verts * sizeof(float) * 4,
+							.stride = sizeof(float) * 4,
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,

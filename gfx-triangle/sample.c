@@ -55,7 +55,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 	struct app_data* app = env->userdata;
 
 	app->gfx.context = rjd_mem_alloc(struct rjd_gfx_context, app->allocator);
-	app->gfx.texture = rjd_mem_alloc(struct rjd_gfx_texture, app->allocator);
 	app->gfx.shader_vertex = rjd_mem_alloc(struct rjd_gfx_shader, app->allocator);
 	app->gfx.shader_pixel = rjd_mem_alloc(struct rjd_gfx_shader, app->allocator);
 	app->gfx.pipeline_state = rjd_mem_alloc(struct rjd_gfx_pipeline_state, app->allocator);
@@ -85,32 +84,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 
 	// resources
 	{
-		// square white texture
-		{
-			const enum rjd_gfx_format format = RJD_GFX_FORMAT_COLOR_U8_BGRA_NORM;
-			uint32_t color[64 * 64 * 4] = {0};
-			for (size_t i = 0; i < rjd_countof(color); ++i) {
-				color[i] = 0xFF0080FF;
-			}
-
-			struct rjd_gfx_texture_desc desc = {
-				.data = color,
-				.data_length = sizeof(color),
-				.pixels_width = 64,
-				.pixels_height = 64,
-				.format = format,
-				.access = RJD_GFX_TEXTURE_ACCESS_CPU_WRITE_GPU_READWRITE,
-				.usage = RJD_GFX_TEXTURE_USAGE_DEFAULT,
-				.debug_label = "my_texture"
-			};
-
-			struct rjd_result result = rjd_gfx_texture_create(app->gfx.context, app->gfx.texture, desc);
-			if (!rjd_result_isok(result))
-			{
-				RJD_LOG("Error loading texture: %s", result.error);
-			}
-		}
-
 		// shaders
 		{
 			const char* filename = rjd_gfx_backend_ismetal() ? "Shaders.metal" : "shaders.hlsl";
@@ -191,7 +164,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				.count_vertex_attributes = rjd_countof(vertex_attributes),
 				.depth_compare = RJD_GFX_DEPTH_COMPARE_GREATEREQUAL,
 				.winding_order = RJD_GFX_WINDING_ORDER_CLOCKWISE,
-				.cull_mode = RJD_GFX_CULL_BACK,
+				// .cull_mode = RJD_GFX_CULL_BACK,
+				.cull_mode = RJD_GFX_CULL_NONE,
 			};
 			struct rjd_result result = rjd_gfx_pipeline_state_create(app->gfx.context, app->gfx.pipeline_state, desc);
 			if (!rjd_result_isok(result)) {
@@ -249,7 +223,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				.primitive = RJD_GFX_PRIMITIVE_TYPE_TRIANGLES,
 				.buffers = buffers_desc,
 				.count_buffers = rjd_countof(buffers_desc),
-				.count_vertices = rjd_countof(positions),
+				.count_vertices = rjd_countof(positions) / 3,
 			};
 
 			struct rjd_result result = rjd_gfx_mesh_create_vertexed(app->gfx.context, app->gfx.mesh, desc);
@@ -311,25 +285,32 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 			.height = window_size.height
 		};
 
-		const uint32_t texture_indices[] = {0};
-
 		struct rjd_gfx_pass_draw_desc desc = {
 			.viewport = &viewport,
 			.pipeline_state = app->gfx.pipeline_state,
 			.meshes = app->gfx.mesh,
-			.textures = app->gfx.texture,
-			.texture_indices = texture_indices,
+			.textures = NULL,
+			.texture_indices = NULL,
 			.count_meshes = 1,
-			.count_textures = 1,
+			.count_textures = 0,
 			.debug_label = "a triangle",
 		};
 
-		rjd_gfx_command_pass_draw(app->gfx.context, &command_buffer, &desc);
+		struct rjd_result result = rjd_gfx_command_pass_draw(app->gfx.context, &command_buffer, &desc);
+		if (!rjd_result_isok(result)) {
+			RJD_LOG("Failed to draw: %s", result.error);
+		}
 	}
 
-	rjd_gfx_command_buffer_commit(app->gfx.context, &command_buffer);
+	struct rjd_result result = rjd_gfx_command_buffer_commit(app->gfx.context, &command_buffer);
+	if (!rjd_result_isok(result)) {
+		RJD_LOG("Failed to commit command buffer: %s", result.error);
+	}
 
-	rjd_gfx_present(app->gfx.context);
+	result = rjd_gfx_present(app->gfx.context);
+	if (!rjd_result_isok(result)) {
+		RJD_LOG("Failed to present: %s", result.error);
+	}
 
 	return true;
 }
@@ -343,16 +324,12 @@ void window_close(struct rjd_window* window, const struct rjd_window_environment
 	if (rjd_slot_isvalid(app->gfx.mesh->handle)) {
 		rjd_gfx_mesh_destroy(app->gfx.context, app->gfx.mesh);
 	}
-	if (rjd_slot_isvalid(app->gfx.texture->handle)) {
-		rjd_gfx_texture_destroy(app->gfx.context, app->gfx.texture);
-	}
 	rjd_gfx_pipeline_state_destroy(app->gfx.context, app->gfx.pipeline_state);
 	rjd_gfx_shader_destroy(app->gfx.context, app->gfx.shader_vertex);
 	rjd_gfx_shader_destroy(app->gfx.context, app->gfx.shader_pixel);
 	rjd_gfx_context_destroy(app->gfx.context);
 
 	rjd_mem_free(app->gfx.context);
-	rjd_mem_free(app->gfx.texture);
 	rjd_mem_free(app->gfx.shader_vertex);
 	rjd_mem_free(app->gfx.shader_pixel);
 	rjd_mem_free(app->gfx.pipeline_state);

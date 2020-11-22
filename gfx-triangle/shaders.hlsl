@@ -1,9 +1,3 @@
-cbuffer Uniforms
-{
-    float4x4 projectionMatrix;
-    float4x4 modelViewMatrix;
-};
-
 struct VS_INPUT
 {
     float4 position : SV_Position;
@@ -26,7 +20,7 @@ PS_INPUT vertexShader(VS_INPUT input)
     PS_INPUT output;
 
     float4 pos = float4(input.position.xyz, 1);
-    output.position = mul(pos, modelViewMatrix * projectionMatrix);
+    output.position = pos;
 	output.color = input.color;
 
     return output;

@@ -8,7 +8,6 @@ struct app_data
 	struct rjd_window* window;
 	struct {
 		struct rjd_gfx_context* context;
-		struct rjd_gfx_texture* texture;
 		struct rjd_gfx_shader* shader_vertex;
 		struct rjd_gfx_shader* shader_pixel;
 		struct rjd_gfx_pipeline_state* pipeline_state;
