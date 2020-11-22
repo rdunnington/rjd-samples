@@ -1,18 +1,4 @@
-// #include <stdio.h>
-// #include <stdbool.h>
-#include <errno.h>
-
 #include "app.h"
-
-
-////////////////////////////////////////////////////////////////////////////////////////////
-// implementation
-
-struct uniforms
-{
-	rjd_math_mat4 viewproj_matrix;
-	rjd_math_mat4 model_matrix;
-};
 
 void env_init(const struct rjd_window_environment* env)
 {
@@ -48,6 +34,9 @@ void env_init(const struct rjd_window_environment* env)
 	}
 
 	rjd_window_runloop(app->window);
+
+	rjd_mem_free(app->window);
+	rjd_mem_free(app->allocator);
 }
 
 void window_init(struct rjd_window* window, const struct rjd_window_environment* env)
@@ -164,8 +153,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				.count_vertex_attributes = rjd_countof(vertex_attributes),
 				.depth_compare = RJD_GFX_DEPTH_COMPARE_GREATEREQUAL,
 				.winding_order = RJD_GFX_WINDING_ORDER_CLOCKWISE,
-				// .cull_mode = RJD_GFX_CULL_BACK,
-				.cull_mode = RJD_GFX_CULL_NONE,
+				.cull_mode = RJD_GFX_CULL_BACK,
 			};
 			struct rjd_result result = rjd_gfx_pipeline_state_create(app->gfx.context, app->gfx.pipeline_state, desc);
 			if (!rjd_result_isok(result)) {
@@ -334,8 +322,4 @@ void window_close(struct rjd_window* window, const struct rjd_window_environment
 	rjd_mem_free(app->gfx.shader_pixel);
 	rjd_mem_free(app->gfx.pipeline_state);
 	rjd_mem_free(app->gfx.mesh);
-
-	rjd_mem_free(app->window);
-	rjd_mem_free(app->allocator);
 }
-
