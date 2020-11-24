@@ -34,9 +34,8 @@ void env_init(const struct rjd_window_environment* env)
 	}
 
 	rjd_window_runloop(app->window);
-
-	rjd_mem_free(app->window);
-	rjd_mem_free(app->allocator);
+    
+    // TODO figure out how to free the window on both windows and macOS
 }
 
 void window_init(struct rjd_window* window, const struct rjd_window_environment* env)
