@@ -7,3 +7,7 @@ sample
 *.ilk
 *.pdb
 *.exe
+.vs
+x64
+*.sln
+*.vcxproj*
