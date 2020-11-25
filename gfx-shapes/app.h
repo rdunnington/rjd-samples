@@ -19,6 +19,7 @@ struct app_data
 };
 
 void env_init(const struct rjd_window_environment* env);
+void env_close(const struct rjd_window_environment* env);
 void window_init(struct rjd_window* window, const struct rjd_window_environment* env);
 bool window_update(struct rjd_window* window, const struct rjd_window_environment* env);
 void window_close(struct rjd_window* window, const struct rjd_window_environment* env);

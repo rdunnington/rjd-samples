@@ -1,14 +1,11 @@
 #include <stdio.h>
 #include <stdbool.h>
-
 #include "app.h"
 
-#include <errno.h>
-
-struct uniforms
+struct shader_constants
 {
-	rjd_math_mat4 viewproj_matrix;
-	rjd_math_mat4 model_matrix;
+	rjd_math_mat4 proj_matrix;
+	rjd_math_mat4 modelview_matrix;
 };
 
 void env_init(const struct rjd_window_environment* env)
@@ -45,6 +42,12 @@ void env_init(const struct rjd_window_environment* env)
 	}
 
 	rjd_window_runloop(app->window);
+}
+
+void env_close(const struct rjd_window_environment* env)
+{
+	struct app_data* app = env->userdata;
+	rjd_mem_free(app->window);
 }
 
 void window_init(struct rjd_window* window, const struct rjd_window_environment* env)
@@ -195,6 +198,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				.depth_compare = RJD_GFX_DEPTH_COMPARE_GREATEREQUAL,
 	            .winding_order = RJD_GFX_WINDING_ORDER_CLOCKWISE,
 	            .cull_mode = RJD_GFX_CULL_BACK,
+	            // .cull_mode = RJD_GFX_CULL_NONE,
 			};
 			struct rjd_result result = rjd_gfx_pipeline_state_create(app->gfx.context, app->gfx.pipeline_state, desc);
 			if (!rjd_result_isok(result)) {
@@ -217,8 +221,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 			const rjd_math_vec4 k_blue = rjd_math_vec4_xyzw(0,0,1,1);
 
 			float* tints = rjd_mem_alloc_array(float, num_verts * 4, app->allocator);
-			for (uint32_t i = 0; i < num_verts * 4; i += 12)
-			{
+			for (uint32_t i = 0; i < num_verts * 4; i += 12) {
 				rjd_math_vec4_write(k_red, tints + i);
 				rjd_math_vec4_write(k_green, tints + i + 4);
 				rjd_math_vec4_write(k_blue, tints + i + 8);
@@ -226,8 +229,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 
 			struct rjd_gfx_mesh_vertex_buffer_desc buffers_desc[] =
 			{
+				// vertices
 				{
-					.type = RJD_GFX_MESH_BUFFER_TYPE_VERTEX,
 					.common = {
 						.vertex = {
 							.data = positions,
@@ -240,7 +243,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				},
 				// tints
 				{
-					.type = RJD_GFX_MESH_BUFFER_TYPE_VERTEX,
 					.common = {
 						.vertex = {
 							.data = tints,
@@ -251,15 +253,14 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
 					.buffer_index = 1,
 				},
-				// uniforms
+				// constants
 				{
-					.type = RJD_GFX_MESH_BUFFER_TYPE_UNIFORMS,
 					.common = {
-						.uniforms = {
-							.capacity = rjd_math_maxu32(sizeof(struct uniforms), 256) * 3,
+						.constant = {
+							.capacity = rjd_math_maxu32(sizeof(struct shader_constants), 256) * 3,
 						}
 					},
-					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX | RJD_GFX_MESH_BUFFER_USAGE_PIXEL,
+					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX_CONSTANT | RJD_GFX_MESH_BUFFER_USAGE_PIXEL_CONSTANT,
 					.buffer_index = 2,
 				}
 			};
@@ -338,7 +339,7 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 
 	// draw a quad
 	{
-		// update uniform transforms
+		// update constant buffer transforms
 		{
 			const struct rjd_window_size bounds = rjd_window_size_get(window);
 
@@ -373,18 +374,24 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 				s_rotation_y += (RJD_MATH_PI * 2.0f / (60.0f * 2 * speed));
 			}
 			
-			rjd_math_mat4 modelview_matrix = rjd_math_mat4_mul(view_matrix, model_matrix);
+			const struct shader_constants constants = {
+				.proj_matrix = proj_matrix,
+				.modelview_matrix = rjd_math_mat4_mul(view_matrix, model_matrix)
+			};
 			
-			rjd_math_mat4 matrices[] = { proj_matrix, modelview_matrix };
-			
+			// Upload matrices to constant buffer
+			uint32_t buffer_index = 2;
+			uint32_t offset = 0;
+
 			// TODO fix hacky frame_index: we can do this by specifying the number of buffers we use for backbuffers.
 			// Default in metal is triple-buffering which is why this works
-			static uint32_t frame_index = 0;
-			uint32_t buffer_index = 2;
-			uint32_t offset = frame_index * rjd_math_maxu32(sizeof(struct uniforms), 256);
-			frame_index = (frame_index + 1) % 3;
+			if (rjd_gfx_backend_ismetal()) {
+				static uint32_t frame_index = 0;
+				offset = frame_index * rjd_math_maxu32(sizeof(struct shader_constants), 256);
+				frame_index = (frame_index + 1) % 3;
+			}
 			
-			rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, matrices, sizeof(matrices));
+			rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, &constants, sizeof(constants));
 		}
 
 		const struct rjd_window_size window_size = rjd_window_size_get(app->window);
@@ -444,8 +451,5 @@ void window_close(struct rjd_window* window, const struct rjd_window_environment
 	rjd_mem_free(app->gfx.shader_pixel);
 	rjd_mem_free(app->gfx.pipeline_state);
 	rjd_mem_free(app->gfx.meshes);
-
-	rjd_mem_free(app->window);
-	rjd_mem_free(app->allocator);
 }
 

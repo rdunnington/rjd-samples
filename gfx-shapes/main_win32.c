@@ -20,7 +20,7 @@ int WINAPI WinMain(HINSTANCE handle_instance, HINSTANCE handle_instance_prev, LP
 		}
 	};
 
-	rjd_window_enter_windowed_environment(env, env_init);
+	rjd_window_enter_windowed_environment(env, env_init, env_close);
 
 	return 0;
 }

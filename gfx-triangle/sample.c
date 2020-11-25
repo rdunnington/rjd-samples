@@ -34,8 +34,13 @@ void env_init(const struct rjd_window_environment* env)
 	}
 
 	rjd_window_runloop(app->window);
-    
-    // TODO figure out how to free the window on both windows and macOS
+}
+
+void env_close(const struct rjd_window_environment* env)
+{
+	struct app_data* app = env->userdata;
+
+	rjd_mem_free(app->window);
 }
 
 void window_init(struct rjd_window* window, const struct rjd_window_environment* env)
@@ -179,7 +184,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 			struct rjd_gfx_mesh_vertex_buffer_desc buffers_desc[] =
 			{
 				{
-					.type = RJD_GFX_MESH_BUFFER_TYPE_VERTEX,
 					.common = {
 						.vertex = {
 							.data = positions,
@@ -192,7 +196,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				},
 				// tints
 				{
-					.type = RJD_GFX_MESH_BUFFER_TYPE_VERTEX,
 					.common = {
 						.vertex = {
 							.data = tints,

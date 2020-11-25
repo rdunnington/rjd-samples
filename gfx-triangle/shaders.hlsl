@@ -12,7 +12,7 @@ struct PS_OUTPUT
 VS_INOUT vertexShader(VS_INOUT input)
 {
     VS_INOUT output;
-    output.position = float4(input.position.xyz, 1);;
+    output.position = float4(input.position.xyz, 1);
     output.color = input.color;
 
     return output;
