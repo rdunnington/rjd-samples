@@ -11,12 +11,16 @@ else
 
 	PLATFORM_FLAGS := -fsanitize=undefined -fsanitize=address
 	PLATFORM_FILES := *.m -framework Foundation -framework AppKit -framework Metal -framework MetalKit
+	PLATFORM_DEFINES := -D RJD_GFX_BACKEND_METAL=1 
 	OUTPUT_FILE := sample
 endif
 
+# -Wno-unused-local-typedefs to suppress locally defined typedefs coming from RJD_STATIC_ASSERT
+CFLAGS := --std=c11 -pedantic -Wall -Wextra -g -march=native -Wno-unused-local-typedefs 
+DEFINES := -D RJD_ENABLE_ASSERT=1 -D RJD_ENABLE_LOGGING=1 $(PLATFORM_DEFINES)
+
 all:
-	# -Wno-unused-local-typedefs to suppress locally defined typedefs coming from RJD_STATIC_ASSERT
-	gcc --std=c11 -pedantic -Wall -Wextra -g -march=native -Wno-unused-local-typedefs $(PLATFORM_FLAGS) sample.c $(PLATFORM_FILES) -o $(OUTPUT_FILE)
+	gcc $(CFLAGS) $(DEFINES) $(PLATFORM_FLAGS) sample.c $(PLATFORM_FILES) -o $(OUTPUT_FILE)
 
 tags:
 	ctags -f tags *
