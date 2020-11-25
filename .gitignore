@@ -3,3 +3,7 @@ xcuserdata
 *.out
 *.DSYM
 sample
+*.obj
+*.ilk
+*.pdb
+*.exe
