@@ -12,7 +12,8 @@ struct app_data
 		struct rjd_gfx_texture* texture;
 		struct rjd_gfx_shader* shader_vertex;
         struct rjd_gfx_shader* shader_pixel;
-		struct rjd_gfx_pipeline_state* pipeline_state;
+		struct rjd_gfx_pipeline_state* pipeline_state_cullback;
+		struct rjd_gfx_pipeline_state* pipeline_state_cullnone;
 		struct rjd_gfx_mesh* meshes;
 	} gfx;
 	uint32_t current_mesh_index;
