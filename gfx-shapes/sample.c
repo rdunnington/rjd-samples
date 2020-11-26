@@ -8,6 +8,14 @@ struct shader_constants
 	rjd_math_mat4 modelview_matrix;
 };
 
+uint32_t calc_shader_constants_stride()
+{
+	uint32_t stride = sizeof(struct shader_constants);
+	uint32_t alignment = rjd_gfx_constant_buffer_alignment();
+	uint32_t aligned_stride = (stride % alignment) + stride;
+	return aligned_stride;
+}
+
 void env_init(const struct rjd_window_environment* env)
 {
 	struct app_data* app = env->userdata;
@@ -264,13 +272,15 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				{
 					.common = {
 						.constant = {
-							.capacity = rjd_math_maxu32(sizeof(struct shader_constants), 256) * 3,
+							.capacity = calc_shader_constants_stride() * 3,
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX_CONSTANT | RJD_GFX_MESH_BUFFER_USAGE_PIXEL_CONSTANT,
 					.buffer_index = 2,
 				}
 			};
+
+			
 
 			struct rjd_gfx_mesh_vertexed_desc desc =
 			{
@@ -389,12 +399,11 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 			};
 			
 			// Upload matrices to constant buffer
-			const uint32_t RJD_GFX_CONSTANT_BUFFER_MIN_STRIDE = 256;
 			const uint32_t buffer_index = 2;
-			const uint32_t stride = rjd_math_maxu32(sizeof(struct shader_constants), RJD_GFX_CONSTANT_BUFFER_MIN_STRIDE);
+			const uint32_t stride = calc_shader_constants_stride();
 			const uint32_t offset = rjd_gfx_current_backbuffer_index(app->gfx.context) * stride;
 			
-			rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, &constants, sizeof(constants));
+			rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, &constants, stride);
 
 			buffer_offset_descs[0].mesh_index = 0;
 			buffer_offset_descs[0].buffer_index = buffer_index;
