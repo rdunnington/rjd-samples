@@ -339,6 +339,12 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 
 	// draw a quad
 	{
+		// TODO fix hacky frame_index: we can do this by specifying the number of buffers we use for backbuffers.
+		// Default in metal is triple-buffering which is why this works
+		static uint32_t frame_index = 0;
+
+		struct rjd_gfx_pass_draw_constant_buffer_desc constant_buffer_descs[1] = {0};
+		
 		// update constant buffer transforms
 		{
 			const struct rjd_window_size bounds = rjd_window_size_get(window);
@@ -380,19 +386,21 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 			};
 			
 			// Upload matrices to constant buffer
-			uint32_t buffer_index = 2;
-			uint32_t offset = 0;
-
-			// TODO fix hacky frame_index: we can do this by specifying the number of buffers we use for backbuffers.
-			// Default in metal is triple-buffering which is why this works
-			if (rjd_gfx_backend_ismetal()) {
-				static uint32_t frame_index = 0;
-				offset = frame_index * rjd_math_maxu32(sizeof(struct shader_constants), 256);
-				frame_index = (frame_index + 1) % 3;
-			}
+			const uint32_t RJD_GFX_CONSTANT_BUFFER_MIN_STRIDE = 256;
+			const uint32_t buffer_index = 2;
+			const uint32_t stride = rjd_math_maxu32(sizeof(struct shader_constants), RJD_GFX_CONSTANT_BUFFER_MIN_STRIDE);
+			const uint32_t offset = frame_index * stride;
 			
 			rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, &constants, sizeof(constants));
+
+			constant_buffer_descs[0].mesh_index = 0;
+			constant_buffer_descs[0].buffer_index = buffer_index;
+			constant_buffer_descs[0].offset_bytes = offset;
+			constant_buffer_descs[0].range_bytes = stride;
 		}
+
+		// TODO track the frame index inside of rjd_gfx?
+		frame_index = (frame_index + 1) % 3;
 
 		const struct rjd_window_size window_size = rjd_window_size_get(app->window);
 		const struct rjd_gfx_viewport viewport = {
@@ -401,13 +409,17 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 		};
 		const uint32_t texture_indices[] = {0};
 
+
+
 		struct rjd_gfx_pass_draw_desc desc = {
 			.viewport = &viewport,
 			.pipeline_state = app->gfx.pipeline_state,
 			.meshes = app->gfx.meshes + app->current_mesh_index,
+			.constant_buffer_descs = constant_buffer_descs,
 			.textures = app->gfx.texture,
 			.texture_indices = texture_indices,
 			.count_meshes = 1,
+			.count_constant_descs = 1,
 			.count_textures = 0,
 			.debug_label = "a shape",
 		};
