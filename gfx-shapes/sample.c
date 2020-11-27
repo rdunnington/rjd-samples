@@ -8,6 +8,11 @@ struct shader_constants
 	rjd_math_mat4 modelview_matrix;
 };
 
+uint32_t calc_shader_constants_stride()
+{
+	return rjd_gfx_calc_constant_buffer_stride(sizeof(struct shader_constants));
+}
+
 void env_init(const struct rjd_window_environment* env)
 {
 	struct app_data* app = env->userdata;
@@ -62,7 +67,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 	app->gfx.texture = rjd_mem_alloc(struct rjd_gfx_texture, app->allocator);
 	app->gfx.shader_vertex = rjd_mem_alloc(struct rjd_gfx_shader, app->allocator);
 	app->gfx.shader_pixel = rjd_mem_alloc(struct rjd_gfx_shader, app->allocator);
-	app->gfx.pipeline_state = rjd_mem_alloc(struct rjd_gfx_pipeline_state, app->allocator);
+	app->gfx.pipeline_state_cullback = rjd_mem_alloc(struct rjd_gfx_pipeline_state, app->allocator);
+	app->gfx.pipeline_state_cullnone = rjd_mem_alloc(struct rjd_gfx_pipeline_state, app->allocator);
 	app->gfx.meshes = rjd_mem_alloc_array(struct rjd_gfx_mesh, RJD_PROCGEO_TYPE_COUNT, app->allocator);
 
 	{
@@ -170,7 +176,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 					.step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
 					.semantic = RJD_GFX_VERTEX_SEMANTIC_POSITION,
 					.attribute_index = 0,
-					.buffer_index = 0,
+					.shader_slot_d3d11 = 0,
+					.shader_slot_metal = 0,
 					.stride = sizeof(float) * 3,
 					.step_rate = 1,
 					.offset = 0,
@@ -181,12 +188,13 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 					.step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
 					.semantic = RJD_GFX_VERTEX_SEMANTIC_COLOR,
 					.attribute_index = 1,
-					.buffer_index = 1,
+					.shader_slot_d3d11 = 1,
+					.shader_slot_metal = 1,
 					.stride = sizeof(float) * 4,
 					.step_rate = 1,
 				},
 			};
-			
+
 			struct rjd_gfx_pipeline_state_desc desc = {
 				.debug_name = "2D Pipeline",
 				.shader_vertex = *app->gfx.shader_vertex,
@@ -198,9 +206,15 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				.depth_compare = RJD_GFX_DEPTH_COMPARE_GREATEREQUAL,
 	            .winding_order = RJD_GFX_WINDING_ORDER_CLOCKWISE,
 	            .cull_mode = RJD_GFX_CULL_BACK,
-	            // .cull_mode = RJD_GFX_CULL_NONE,
 			};
-			struct rjd_result result = rjd_gfx_pipeline_state_create(app->gfx.context, app->gfx.pipeline_state, desc);
+			struct rjd_result result = rjd_gfx_pipeline_state_create(app->gfx.context, app->gfx.pipeline_state_cullback, desc);
+			if (!rjd_result_isok(result)) {
+				RJD_LOG("Error creating pipeline state: %s", result.error);
+			}
+
+			desc.cull_mode = RJD_GFX_CULL_NONE;
+
+			result = rjd_gfx_pipeline_state_create(app->gfx.context, app->gfx.pipeline_state_cullnone, desc);
 			if (!rjd_result_isok(result)) {
 				RJD_LOG("Error creating pipeline state: %s", result.error);
 			}
@@ -227,7 +241,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				rjd_math_vec4_write(k_blue, tints + i + 8);
 			}
 
-			struct rjd_gfx_mesh_vertex_buffer_desc buffers_desc[] =
+			struct rjd_gfx_mesh_buffer_desc buffers_desc[] =
 			{
 				// vertices
 				{
@@ -239,7 +253,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
-					.buffer_index = 0,
+					.shader_slot_metal = 0,
+					.shader_slot_d3d11 = 0,
 				},
 				// tints
 				{
@@ -251,17 +266,19 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
-					.buffer_index = 1,
+					.shader_slot_metal = 1,
+					.shader_slot_d3d11 = 1,
 				},
 				// constants
 				{
 					.common = {
 						.constant = {
-							.capacity = rjd_math_maxu32(sizeof(struct shader_constants), 256) * 3,
+							.capacity = calc_shader_constants_stride() * 3,
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX_CONSTANT | RJD_GFX_MESH_BUFFER_USAGE_PIXEL_CONSTANT,
-					.buffer_index = 2,
+					.shader_slot_metal = 2,
+					.shader_slot_d3d11 = 0,
 				}
 			};
 
@@ -339,6 +356,8 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 
 	// draw a quad
 	{
+		struct rjd_gfx_pass_draw_buffer_offset_desc buffer_offset_descs[1] = {0};
+		
 		// update constant buffer transforms
 		{
 			const struct rjd_window_size bounds = rjd_window_size_get(window);
@@ -380,18 +399,16 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 			};
 			
 			// Upload matrices to constant buffer
-			uint32_t buffer_index = 2;
-			uint32_t offset = 0;
+			const uint32_t buffer_index = 2;
+			const uint32_t stride = calc_shader_constants_stride();
+			const uint32_t offset = rjd_gfx_current_backbuffer_index(app->gfx.context) * stride;
 
-			// TODO fix hacky frame_index: we can do this by specifying the number of buffers we use for backbuffers.
-			// Default in metal is triple-buffering which is why this works
-			if (rjd_gfx_backend_ismetal()) {
-				static uint32_t frame_index = 0;
-				offset = frame_index * rjd_math_maxu32(sizeof(struct shader_constants), 256);
-				frame_index = (frame_index + 1) % 3;
-			}
-			
 			rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, &constants, sizeof(constants));
+
+			buffer_offset_descs[0].mesh_index = 0;
+			buffer_offset_descs[0].buffer_index = buffer_index;
+			buffer_offset_descs[0].offset_bytes = offset;
+			buffer_offset_descs[0].range_bytes = stride;
 		}
 
 		const struct rjd_window_size window_size = rjd_window_size_get(app->window);
@@ -401,13 +418,21 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 		};
 		const uint32_t texture_indices[] = {0};
 
+		const struct rjd_gfx_pipeline_state* pipeline_state = app->gfx.pipeline_state_cullback;
+		if (app->current_mesh_index == RJD_PROCGEO_TYPE_RECT ||
+			app->current_mesh_index == RJD_PROCGEO_TYPE_CIRCLE) {
+			pipeline_state = app->gfx.pipeline_state_cullnone;
+		}
+
 		struct rjd_gfx_pass_draw_desc desc = {
 			.viewport = &viewport,
-			.pipeline_state = app->gfx.pipeline_state,
+			.pipeline_state = pipeline_state,
 			.meshes = app->gfx.meshes + app->current_mesh_index,
+			.buffer_offset_descs = buffer_offset_descs,
 			.textures = app->gfx.texture,
 			.texture_indices = texture_indices,
 			.count_meshes = 1,
+			.count_constant_descs = 1,
 			.count_textures = 0,
 			.debug_label = "a shape",
 		};
@@ -440,7 +465,8 @@ void window_close(struct rjd_window* window, const struct rjd_window_environment
 	if (rjd_slot_isvalid(app->gfx.texture->handle)) {
 		rjd_gfx_texture_destroy(app->gfx.context, app->gfx.texture);
 	}
-	rjd_gfx_pipeline_state_destroy(app->gfx.context, app->gfx.pipeline_state);
+	rjd_gfx_pipeline_state_destroy(app->gfx.context, app->gfx.pipeline_state_cullback);
+	rjd_gfx_pipeline_state_destroy(app->gfx.context, app->gfx.pipeline_state_cullnone);
 	rjd_gfx_shader_destroy(app->gfx.context, app->gfx.shader_vertex);
 	rjd_gfx_shader_destroy(app->gfx.context, app->gfx.shader_pixel);
 	rjd_gfx_context_destroy(app->gfx.context);
@@ -449,7 +475,8 @@ void window_close(struct rjd_window* window, const struct rjd_window_environment
 	rjd_mem_free(app->gfx.texture);
 	rjd_mem_free(app->gfx.shader_vertex);
 	rjd_mem_free(app->gfx.shader_pixel);
-	rjd_mem_free(app->gfx.pipeline_state);
+	rjd_mem_free(app->gfx.pipeline_state_cullback);
+	rjd_mem_free(app->gfx.pipeline_state_cullnone);
 	rjd_mem_free(app->gfx.meshes);
 }
 

@@ -130,7 +130,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 					.step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
 					.semantic = RJD_GFX_VERTEX_SEMANTIC_POSITION,
 					.attribute_index = 0,
-					.buffer_index = 0,
+					.shader_slot_metal = 0,
+					.shader_slot_d3d11 = 0,
 					.stride = sizeof(float) * 3,
 					.step_rate = 1,
 					.offset = 0,
@@ -141,7 +142,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 					.step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
 					.semantic = RJD_GFX_VERTEX_SEMANTIC_COLOR,
 					.attribute_index = 1,
-					.buffer_index = 1,
+					.shader_slot_metal = 1,
+					.shader_slot_d3d11 = 1,
 					.stride = sizeof(float) * 4,
 					.step_rate = 1,
 				},
@@ -181,7 +183,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				0,0,1,1,
 			};
 
-			struct rjd_gfx_mesh_vertex_buffer_desc buffers_desc[] =
+			struct rjd_gfx_mesh_buffer_desc buffers_desc[] =
 			{
 				{
 					.common = {
@@ -192,7 +194,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
-					.buffer_index = 0,
+					.shader_slot_metal = 0,
+					.shader_slot_d3d11 = 0,
 				},
 				// tints
 				{
@@ -204,7 +207,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
-					.buffer_index = 1,
+					.shader_slot_metal = 1,
+					.shader_slot_d3d11 = 1,
 				},
 			};
 
