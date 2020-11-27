@@ -10,10 +10,7 @@ struct shader_constants
 
 uint32_t calc_shader_constants_stride()
 {
-	uint32_t stride = sizeof(struct shader_constants);
-	uint32_t alignment = rjd_gfx_constant_buffer_alignment();
-	uint32_t aligned_stride = (stride % alignment) + stride;
-	return aligned_stride;
+	return rjd_gfx_calc_constant_buffer_stride(sizeof(struct shader_constants));
 }
 
 void env_init(const struct rjd_window_environment* env)
@@ -402,8 +399,8 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 			const uint32_t buffer_index = 2;
 			const uint32_t stride = calc_shader_constants_stride();
 			const uint32_t offset = rjd_gfx_current_backbuffer_index(app->gfx.context) * stride;
-			
-			rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, &constants, stride);
+
+			rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, &constants, sizeof(constants));
 
 			buffer_offset_descs[0].mesh_index = 0;
 			buffer_offset_descs[0].buffer_index = buffer_index;
