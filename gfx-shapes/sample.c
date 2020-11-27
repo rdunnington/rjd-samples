@@ -176,7 +176,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 					.step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
 					.semantic = RJD_GFX_VERTEX_SEMANTIC_POSITION,
 					.attribute_index = 0,
-					.buffer_index = 0,
+					.shader_slot_d3d11 = 0,
+					.shader_slot_metal = 0,
 					.stride = sizeof(float) * 3,
 					.step_rate = 1,
 					.offset = 0,
@@ -187,12 +188,13 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 					.step = RJD_GFX_VERTEX_FORMAT_STEP_VERTEX,
 					.semantic = RJD_GFX_VERTEX_SEMANTIC_COLOR,
 					.attribute_index = 1,
-					.buffer_index = 1,
+					.shader_slot_d3d11 = 1,
+					.shader_slot_metal = 1,
 					.stride = sizeof(float) * 4,
 					.step_rate = 1,
 				},
 			};
-			
+
 			struct rjd_gfx_pipeline_state_desc desc = {
 				.debug_name = "2D Pipeline",
 				.shader_vertex = *app->gfx.shader_vertex,
@@ -239,7 +241,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				rjd_math_vec4_write(k_blue, tints + i + 8);
 			}
 
-			struct rjd_gfx_mesh_vertex_buffer_desc buffers_desc[] =
+			struct rjd_gfx_mesh_buffer_desc buffers_desc[] =
 			{
 				// vertices
 				{
@@ -251,7 +253,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
-					.buffer_index = 0,
+					.shader_slot_metal = 0,
+					.shader_slot_d3d11 = 0,
 				},
 				// tints
 				{
@@ -263,7 +266,8 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX,
-					.buffer_index = 1,
+					.shader_slot_metal = 1,
+					.shader_slot_d3d11 = 1,
 				},
 				// constants
 				{
@@ -273,11 +277,10 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 						}
 					},
 					.usage_flags = RJD_GFX_MESH_BUFFER_USAGE_VERTEX_CONSTANT | RJD_GFX_MESH_BUFFER_USAGE_PIXEL_CONSTANT,
-					.buffer_index = 2,
+					.shader_slot_metal = 2,
+					.shader_slot_d3d11 = 0,
 				}
 			};
-
-			
 
 			struct rjd_gfx_mesh_vertexed_desc desc =
 			{

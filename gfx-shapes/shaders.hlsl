@@ -1,4 +1,4 @@
-cbuffer Uniforms : register(b2)
+cbuffer Uniforms : register(b0)
 {
     float4x4 projectionMatrix;
     float4x4 modelViewMatrix;
