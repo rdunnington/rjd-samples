@@ -72,13 +72,9 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 	app->gfx.meshes = rjd_mem_alloc_array(struct rjd_gfx_mesh, RJD_PROCGEO_TYPE_COUNT, app->allocator);
 
 	{
-		uint32_t msaa_sample_counts[] = { 16, 8, 4, 2, 1 };
-		
 		struct rjd_gfx_context_desc desc = {
 			.backbuffer_color_format = RJD_GFX_FORMAT_COLOR_U8_BGRA_NORM_SRGB,
 			.backbuffer_depth_format = RJD_GFX_FORMAT_DEPTHSTENCIL_F32_D32,
-			.optional_desired_msaa_samples = msaa_sample_counts, // TODO make a separate MSAA sample based on the triangle sample
-			.count_desired_msaa_samples = rjd_countof(msaa_sample_counts),
 			.allocator = app->allocator,
 		};
 
@@ -88,10 +84,24 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 			desc.osx.view = rjd_window_osx_get_mtkview(window);
 		#endif
 
-		struct rjd_result result = rjd_gfx_context_create(app->gfx.context, desc);
-		if (!rjd_result_isok(result)) {
-			RJD_LOG("Failed to create gfx context: %s", result.error);
-			return;
+		{
+			struct rjd_result result = rjd_gfx_context_create(app->gfx.context, desc);
+			if (!rjd_result_isok(result)) {
+				RJD_LOG("Failed to create gfx context: %s", result.error);
+				return;
+			}
+		}
+
+		// TODO separate MSAA sample
+		uint32_t msaa_sample_counts[] = { 8, 4, 2, 1 };
+		for (size_t i = 0; i < rjd_countof(msaa_sample_counts); ++i) {
+			struct rjd_result result = rjd_gfx_backbuffer_set_msaa_count(app->gfx.context, msaa_sample_counts[i]);
+			if (rjd_result_isok(result)) {
+				break;
+			}
+			else {
+				RJD_LOG("Failed to set msaa count to %u. Error: %s", msaa_sample_counts[i], result.error);
+			}
 		}
 	}
 
@@ -111,6 +121,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				.pixels_width = 64,
 				.pixels_height = 64,
 				.format = format,
+				.msaa_samples = 1,
 				.access = RJD_GFX_TEXTURE_ACCESS_CPU_WRITE_GPU_READWRITE,
 				.usage = RJD_GFX_TEXTURE_USAGE_DEFAULT,
 				.debug_label = "my_texture"
@@ -401,7 +412,7 @@ bool window_update(struct rjd_window* window, const struct rjd_window_environmen
 			// Upload matrices to constant buffer
 			const uint32_t buffer_index = 2;
 			const uint32_t stride = calc_shader_constants_stride();
-			const uint32_t offset = rjd_gfx_current_backbuffer_index(app->gfx.context) * stride;
+			const uint32_t offset = rjd_gfx_backbuffer_current_index(app->gfx.context) * stride;
 
 			rjd_gfx_mesh_modify(app->gfx.context, &command_buffer, app->gfx.meshes + app->current_mesh_index, buffer_index, offset, &constants, sizeof(constants));
 
