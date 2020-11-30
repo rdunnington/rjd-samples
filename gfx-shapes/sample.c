@@ -215,6 +215,7 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				.vertex_attributes = vertex_attributes,
 				.count_vertex_attributes = rjd_countof(vertex_attributes),
 				.depth_compare = RJD_GFX_DEPTH_COMPARE_GREATEREQUAL,
+				.depth_write_enabled = true,
 	            .winding_order = RJD_GFX_WINDING_ORDER_CLOCKWISE,
 	            .cull_mode = RJD_GFX_CULL_BACK,
 			};
