@@ -57,8 +57,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 		struct rjd_gfx_context_desc desc = {
 			.backbuffer_color_format = RJD_GFX_FORMAT_COLOR_U8_BGRA_NORM_SRGB,
 			.backbuffer_depth_format = RJD_GFX_FORMAT_DEPTHSTENCIL_F32_D32,
-			.optional_desired_msaa_samples = NULL,
-			.count_desired_msaa_samples = 0,
 			.allocator = app->allocator,
 		};
 
