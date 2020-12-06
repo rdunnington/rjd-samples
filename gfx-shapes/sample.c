@@ -91,18 +91,6 @@ void window_init(struct rjd_window* window, const struct rjd_window_environment*
 				return;
 			}
 		}
-
-		// TODO separate MSAA sample
-		uint32_t msaa_sample_counts[] = { 8, 4, 2, 1 };
-		for (size_t i = 0; i < rjd_countof(msaa_sample_counts); ++i) {
-			struct rjd_result result = rjd_gfx_backbuffer_set_msaa_count(app->gfx.context, msaa_sample_counts[i]);
-			if (rjd_result_isok(result)) {
-				break;
-			}
-			else {
-				RJD_LOG("Failed to set msaa count to %u. Error: %s", msaa_sample_counts[i], result.error);
-			}
-		}
 	}
 
 	// resources
